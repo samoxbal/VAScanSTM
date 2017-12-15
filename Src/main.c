@@ -47,6 +47,8 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
+#include <lwip/tcp.h>
+#include <string.h>
 #include "main.h"
 #include "stm32f7xx_hal.h"
 #include "i2c.h"
@@ -74,14 +76,33 @@ void SystemClock_Config(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+extern ip4_addr_t ipaddr;
+struct tcp_pcb *TCPSockJSON;
 
+static err_t json_client_sent(void *arg, struct tcp_pcb *pcb, u16_t len)
+{
+    LWIP_UNUSED_ARG(arg);
+    return ERR_OK;
+}
+
+static err_t json_connected(void *arg, struct tcp_pcb *pcb, err_t err)
+{
+    char *string = "{\"hop\": 0}";
+    LWIP_UNUSED_ARG(arg);
+    if(err == ERR_OK)
+    {
+        tcp_write(pcb, string, strlen(string), 0);
+        tcp_output(pcb);
+    }
+    return err;
+}
 /* USER CODE END 0 */
 
 int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+    uint8_t pData[10];
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -109,6 +130,15 @@ int main(void)
   MX_LWIP_Init();
 
   /* USER CODE BEGIN 2 */
+    // настройка PCA9534
+    pData[0] = 0x03;
+    pData[1] = 0xFF;
+    HAL_I2C_Master_Transmit(&hi2c1, 0x20, pData, 2, 10);
+    // LWIP
+	IP4_ADDR(&ipaddr, 192,168,1,152);
+	TCPSockJSON = tcp_new();
+    tcp_sent(TCPSockJSON, json_client_sent);
+	tcp_connect(TCPSockJSON, &ipaddr, 9090, json_connected);
 
   /* USER CODE END 2 */
 
@@ -117,7 +147,7 @@ int main(void)
   while (1)
   {
   /* USER CODE END WHILE */
-
+      HAL_I2C_Master_Receive(&hi2c1, 0x20, pData, 1, 10);
   /* USER CODE BEGIN 3 */
 
   }
